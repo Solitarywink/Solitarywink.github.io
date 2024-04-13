@@ -1,0 +1,269 @@
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Intro to MapView - Create a 2D map | Sample | ArcGIS Maps SDK for JavaScript 4.29</title>
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+        header {
+            background-color:rgb(0, 255, 255);
+            color: blue;
+            padding:0;
+            text-align: center;
+            width: 100%;
+            float: left;
+            margin: auto;
+        }
+
+        /* 导航链接的样式 */
+        .nav-link {
+            color:black;
+            text-decoration: none;
+            padding: 0 15px;
+            font-size: 32px;
+
+        }
+
+        /* 导航链接悬停时的样式 */
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+        #viewDiv {
+            height: calc(100% - 50px);
+            width: calc(100% - 200px);
+            position: absolute;
+            left: 200px;
+            /* Width of the basemap gallery */
+            top: 50px;
+            /* Height of the header */
+        }
+        #basemapGalleryDiv {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 200px;
+            height: calc(100% - 45px);
+            background: white;
+            overflow-y: auto;
+            /* Enable vertical scrolling */
+            padding: 5px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+        }
+        #toolbarDiv {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: default;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+        }
+
+        .esri-widget--button.active,
+        .esri-widget--button.active:hover,
+        .esri-widget--button.active:focus {
+            cursor: default;
+            background-color: #999696;
+        }
+
+        .esri-widget--button.active path,
+        .esri-widget--button.active:hover path,
+        .esri-widget--button.active:focus path {
+            fill: #E4E4E4;
+        }
+
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <script>
+        require(["esri/layers/FeatureLayer",
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/widgets/ScaleBar",
+            "esri/widgets/Legend",
+            "esri/widgets/Search",
+            "esri/widgets/LayerList",
+            "esri/widgets/BasemapGallery",
+            "esri/widgets/Expand",
+            "esri/widgets/Editor",
+            "esri/config",
+            "esri/widgets/AreaMeasurement2D",
+            "esri/widgets/DistanceMeasurement2D",
+            "esri/widgets/Sketch",
+            "esri/layers/GraphicsLayer"], (FeatureLayer,Map,MapView,ScaleBar,Legend,Search,LayerList,BasemapGallery,Expand,Editor, esriConfig, AreaMeasurement2D, DistanceMeasurement2D,Sketch,GraphicsLayer) => {
+            const layer = new FeatureLayer({
+                // URL to the service
+                url: "https://www.geosceneonline.cn/server/rest/services/Hosted/2020年全国31省市地区人均水资源量分布图/FeatureServer"
+            });
+            const graphicsLayer = new GraphicsLayer();
+            const map = new Map({
+                basemap: "topo-vector",
+                layers: [graphicsLayer]
+            });
+            map.add(layer);
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                zoom: 3,
+                center: [119, 26] // longitude, latitude
+            });
+            let scaleBar = new ScaleBar({
+                view: view
+            });
+// Add widget to the bottom left corner of the view
+            view.ui.add(scaleBar, {
+                position: "bottom-left"
+            });
+            let legend = new Legend({
+                view: view
+            });
+            view.ui.add(legend, "bottom-right");
+            const searchWidget = new Search({
+                view: view
+            });
+// Adds the search widget below other elements in
+// the top left corner of the view
+            let layerList = new LayerList({
+                view: view
+            });
+// Adds widget below other elements in the top left corner of the view
+            const basemapGallery = new BasemapGallery({
+                view: view,
+                container: "galleryContainer"
+            });
+// Add widget to the top right corner of the view
+            view.ui.add([
+                    new Expand({
+                        view: view,
+                        content: new Search({ view: view }),
+                        group: "top-left",
+                        expanded: true
+                    }),
+                    new Expand({
+                        view: view,
+                        content: new Editor({ view: view }),
+                        group: "top-left",
+                        expanded: false
+                    }),
+                ],
+                "top-left"
+            );
+
+            view.ui.add([
+                    new Expand({
+                        view: view,
+                        content: new LayerList({ view: view }),
+                        group: "top-right",
+                        expanded: true
+                    }),
+
+                ],
+                "top-right"
+            );
+            view.when(() => {
+                const sketch = new Sketch({
+                    layer: graphicsLayer,
+                    view: view,
+                    // graphic will be selected as soon as it is created
+                    creationMode: "update"
+                });
+
+                view.ui.add(sketch, "top-left");
+            });
+
+
+
+            // add the toolbar for the measurement widgets
+            view.ui.add("topbar", "top-right");
+
+            // create the measurement widgets and hide them by default
+            const distanceMeasurement2D = new DistanceMeasurement2D({
+                view,
+                visible: false
+            });
+            const areaMeasurement2D = new AreaMeasurement2D({
+                view,
+                visible: false
+            });
+
+            // event listener for distance measurements
+            document.getElementById("distanceButton").addEventListener("click", function () {
+                setActiveWidget(null);
+                if (!this.classList.contains("active")) {
+                    setActiveWidget("distance");
+                } else {
+                    setActiveButton(null);
+                }
+            });
+
+            // event listener for area measurements
+            document.getElementById("areaButton").addEventListener("click", function () {
+                setActiveWidget(null);
+                if (!this.classList.contains("active")) {
+                    setActiveWidget("area");
+                } else {
+                    setActiveButton(null);
+                }
+            });
+
+            function setActiveWidget(type) {
+                switch (type) {
+                    case "distance":
+                        areaMeasurement2D.visible = false;
+                        distanceMeasurement2D.visible = true;
+                        distanceMeasurement2D.viewModel.start();
+                        setActiveButton(document.getElementById("distanceButton"));
+                        break;
+                    case "area":
+                        distanceMeasurement2D.visible = false;
+                        areaMeasurement2D.visible = true;
+                        areaMeasurement2D.viewModel.start();
+                        setActiveButton(document.getElementById("areaButton"));
+                        break;
+                    case null:
+                        areaMeasurement2D.visible = false;
+                        distanceMeasurement2D.visible = false;
+                        break;
+                }
+            }
+
+            function setActiveButton(selectedButton) {
+                // focus the view to activate keyboard shortcuts for sketching
+                view.focus();
+                let elements = document.getElementsByClassName("active");
+                for (let i = 0; i < elements.length; i++) {
+                    elements[i].classList.remove("active");
+                }
+                if (selectedButton) {
+                    selectedButton.classList.add("active");
+                }
+            }
+
+        });
+    </script>
+</head>
+
+<body>
+<header>
+    <!-- 导航链接 -->
+    <a href="index.html" class="nav-link">2020年全国31省市地区人均水资源量分布图</a>
+</header>
+<div id="basemapGalleryDiv">
+    <div class="title">底图库</div> <!-- Title for the basemap gallery -->
+    <div id="galleryContainer"></div> <!-- Container for basemap gallery items -->
+</div>
+<div id="viewDiv"></div>
+<div id="topbar">
+    <button class="action-button esri-icon-measure-area" id="areaButton" type="button" title="Measure area"></button>
+    <button class="action-button esri-icon-measure-line" id="distanceButton" type="button" title="Measure distance between two or more points"></button></div>
+</body>
+</html>
